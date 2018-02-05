@@ -1,0 +1,97 @@
+Nplane.c是一个刚接触c语言时写的运行在控制台的小游戏
+主要实现了控制飞机的移动，发射子弹等功能，由于彼时初次接触unix踩了很多坑，因为没有kbhit等函数
+因此这里，我采用了curses图形库，注意事项如下：
+1.在开始使用 curses 的一切命令之前, 您必须先利用 initscr()这个函式来开启 curses 模式. 
+相对的, 在结束 curses 模式前 ( 通常在您结束程式前 ) 也必须以endwin()来关闭 curses 模式.
+#include <curses.h>   （所需头文件）
+void initial(){        //初始化函数
+	initscr();
+	noecho();
+	refresh();
+}
+int main(){
+	int ch =0;
+	startup();                  //数据初始化
+	setlocale(LC_ALL,"");       //与locale配合使用，在初始化屏幕前设置
+	initial();
+	introduction();
+	while(key){                   //游戏循环执行
+		show();
+		updatewithoutinput();
+		refresh();              //刷新屏幕
+		init_keyboard();
+		updatewithinput();
+		close_keyboard();
+	}
+	endwin();
+	return 0;
+}
+2.Unix的编程方式通常为程序应准备好等待事件的发生。因为这就是通常的kbhit的用法，所以Unix和Linux将其忽略了，因而需要自己写这个函数。
+下面是检测函数kbhit在unix/linux上的实现
+void init_keyboard()
+{
+	tcgetattr(0,&initial_settings);
+	new_settings = initial_settings;
+	new_settings.c_lflag &= ~ICANON;
+	new_settings.c_lflag &= ~ECHO;
+	new_settings.c_lflag &= ~ISIG;
+	new_settings.c_cc[VMIN] = 1;
+	new_settings.c_cc[VTIME] = 0;
+	tcsetattr(0, TCSANOW, &new_settings);
+}
+void close_keyboard()
+{
+	tcsetattr(0, TCSANOW, &initial_settings);
+}
+
+int kbhit()
+{
+	char ch;
+	int nread;
+	if(peek_character != -1)
+	    return 1;
+	    new_settings.c_cc[VMIN]=0;
+	    tcsetattr(0, TCSANOW, &new_settings);
+		nread = read(0,&ch,1);
+		new_settings.c_cc[VMIN]=1;
+		tcsetattr(0, TCSANOW, &new_settings);
+		if(nread == 1) {
+		    peek_character = ch;
+			return 1;
+		}
+		return 0;
+}
+int readch()
+{
+	char ch;
+	if(peek_character != -1) {
+		ch = peek_character;
+		peek_character = -1;
+		return ch;
+	}
+	read(0,&ch,1);
+	return ch;
+}
+void introduction(){
+	int i,j;
+	for(i=0;i<height/4;i++){
+		printw("\n");
+		for(j=0;j<width/2;j++){
+			printw(" ");
+		}
+	}
+	printw("这是一个字符界面的飞机游戏\n");
+	for(j=0;j<width/2;j++){
+		printw(" ");
+	}
+    printw("w,s,a,d分别对应上下左右,q退出\n");
+	for(j=0;j<width/2;j++){
+		printw(" ");
+	}
+	printw(" 按任意键继续\n");
+	refresh();
+    getch();
+    clear();
+}
+
+
